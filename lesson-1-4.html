@@ -100,7 +100,7 @@
                 <header class="mb-14">
                     <p class="text-[13px] text-warm-400 mb-4 font-medium tracking-[-0.01em]">Context Engineering</p>
                     <h1 class="font-display text-[clamp(2.2rem,5vw,3.2rem)] leading-[1.08] text-warm-900 tracking-[-0.01em] mb-5">Compaction</h1>
-                    <p class="text-[17px] leading-[1.65] text-warm-600 max-w-[560px]">When a session gets long enough, Claude compacts the conversation. Understanding what compaction is and how it works is essential for building agentic workflows you can trust.</p>
+                    <p class="text-[17px] leading-[1.65] text-warm-600 max-w-[560px]">When a session gets long enough, Claude compresses the conversation and information gets lost. Learn how compaction works, when it triggers, what survives, and how hooks give you additional control.</p>
                 </header>
 
                 <!-- Lesson navigation -->
@@ -184,7 +184,7 @@
                     <section id="when-it-triggers" class="mb-14">
                         <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">Auto-compaction</h2>
                         <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
-                            <p>Auto-compaction triggers when the conversation reaches approximately 95% of context capacity by default. But "capacity" isn't the raw context window because Claude Code reserves a buffer (roughly ~20K tokens on a 200K context window) for its own operation. After accounting for system overhead (~20K tokens), MCP tool schemas, and CLAUDE.md files, the usable conversation space before triggering ranges between 100K-140K tokens.</p>
+                            <p>Auto-compaction triggers when the conversation reaches approximately 95% of context capacity by default. But "capacity" isn't the raw context window because Claude Code reserves a buffer (~20K tokens on a 200K context window) for its own operation. After accounting for system overhead (~20K tokens), MCP tool schemas, and CLAUDE.md files, the usable conversation space before compaction ranges between 100K-140K tokens.</p>
                             <p>You can monitor this in real time. The <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/context</code> command shows a detailed token allocation breakdown for your current session. You can also configure your status line to display context usage percentage continuously.</p>
                         </div>
 
