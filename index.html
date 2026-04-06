@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Code: Engineering Agentic Systems</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;450;500;520;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'display': ['"Instrument Serif"', 'Georgia', 'serif'],
+                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    colors: {
+                        'warm': {
+                            50: '#FAFAF8',
+                            100: '#F3F2EE',
+                            150: '#ECEAE4',
+                            200: '#E0DED6',
+                            300: '#C9C5B9',
+                            400: '#A9A395',
+                            500: '#8A8374',
+                            600: '#6B655A',
+                            700: '#524E45',
+                            800: '#393630',
+                            900: '#1D1B18',
+                        },
+                        'accent': '#D4713B',
+                        'accent-muted': '#C2784A',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { -webkit-font-smoothing: antialiased; }
+
+        .lesson-desc {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        .lesson-desc.is-open { grid-template-rows: 1fr; }
+        .lesson-desc > div { overflow: hidden; }
+
+        .module-num {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .chevron-icon {
+            transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        .chevron-icon.rotated { transform: rotate(180deg); }
+
+        .lesson-link {
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .progress-bar {
+            transition: width 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        @media (hover: hover) {
+            .lesson-link:hover { background-color: rgba(0,0,0,0.018); }
+        }
+
+        .available-lesson {
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        @media (hover: hover) {
+            .available-lesson:hover {
+                border-color: #D4713B;
+                box-shadow: 0 0 0 1px #D4713B22, 0 2px 8px #D4713B10;
+            }
+        }
+
+        ::selection { background: #D4713B33; }
+    </style>
+</head>
+<body class="bg-warm-50 text-warm-900 font-sans">
+
+    <!-- Minimal top bar -->
+    <nav class="fixed top-0 inset-x-0 z-50 bg-warm-50/85 backdrop-blur-lg">
+        <div class="max-w-[680px] mx-auto px-6 flex items-center justify-between h-14">
+            <span class="text-[13px] font-medium text-warm-500 tracking-[-0.01em]">Engineering Agentic Systems</span>
+            <span class="text-[13px] text-warm-400 module-num" id="nav-progress"></span>
+        </div>
+        <div class="max-w-[680px] mx-auto px-6">
+            <div class="h-px bg-warm-200/70"></div>
+        </div>
+    </nav>
+
+    <main class="max-w-[680px] mx-auto px-6">
+
+        <!-- Header -->
+        <header class="pt-28 pb-16">
+            <h1 class="font-display text-[clamp(2.5rem,6vw,3.75rem)] leading-[1.05] text-warm-900 tracking-[-0.01em] mb-6">
+                Engineering<br>Agentic Systems
+            </h1>
+            <p class="text-[17px] leading-[1.65] text-warm-600 max-w-[560px]">
+                Systems and design decisions behind effective agentic development. Context engineering, MCP servers, multi-agent orchestration, CI automation, and team distribution.
+            </p>
+        </header>
+
+        <div class="h-px bg-warm-200/70 mb-14"></div>
+
+        <!-- Curriculum -->
+        <section id="curriculum" class="pb-24">
+            <div class="flex items-baseline justify-between mb-10">
+                <h2 class="font-display text-[2rem] text-warm-900 tracking-[-0.01em]">Curriculum</h2>
+                <button onclick="resetProgress()" class="text-[12px] text-warm-400 hover:text-warm-600 transition-colors">Reset progress</button>
+            </div>
+
+            <div id="modules" class="space-y-12"></div>
+        </section>
+
+    </main>
+
+
+    <script>
+    const COURSE = [
+        {
+            id: 1,
+            title: "Context Engineering",
+            lessons: [
+                { slug: null, title: "Static vs Dynamic Context", desc: "Everything Claude sees is either pre-loaded before your prompt or accumulated as you work. Learn to distinguish between the two so you can be intentional about what goes where and why." },
+                { slug: null, title: "The Rules Router", desc: "Not every instruction is applicable to your entire codebase. Rules allow you to scope instructions to specific paths, directories, or topics. Learn to design a rules directory that scales without bloating every session." },
+                { slug: null, title: "Auto Memory", desc: "Claude can automatically make notes of your preferences, workflow habits, and patterns. Learn how auto memory works, when to write manual entries, and how to structure memory files so context compounds across sessions." },
+                { slug: "lesson-1-4", title: "Compaction", desc: "When a session gets long enough, Claude compresses the conversation and information gets lost. Learn how compaction works, when it triggers, what survives, and how the PreCompact hook gives you additional control." },
+                { slug: null, title: "Debugging Context Failures", desc: "When Claude skips an instruction, it's often a context problem. Information may have been compacted out, there may be conflicting rules, or ambiguous phrasing. Learn to trace the root cause and fix it." },
+            ]
+        },
+        {
+            id: 2,
+            title: "Teaching Claude Your Stack",
+            lessons: [
+                { slug: null, title: "Model Context Protocol", desc: "MCP servers give Claude new capabilities. Learn the architecture behind MCP\u2014how tools and resources work, how transport layers connect them, and what actually happens when Claude makes an MCP call." },
+                { slug: null, title: "Working with MCP Servers", desc: "Learn how to scope MCP servers to projects or users, manage authentication and permissions, and validate that a server works before you build around it." },
+                { slug: null, title: "Agent Skills as Packaged Expertise", desc: "While MCP servers give Claude new capabilities, agent skills give it packaged expertise. Learn what an agent skill is, when it's the right tool, and how skills turn Claude from a generalist into a domain expert." },
+                { slug: null, title: "Building and Evaluating Agent Skills", desc: "Learn how templates, reference implementations, example outputs, and frontmatter shape Claude's behavior\u2014and how to evaluate your skills' performance." },
+                { slug: null, title: "Advanced Skill Patterns", desc: "Skills don't exist in isolation. Learn to compose skills together, fork context for parallel workstreams, orchestrate MCP tools from within a skill, and design for maintainability." },
+            ]
+        },
+        {
+            id: 3,
+            title: "Agents Working Together",
+            lessons: [
+                { slug: null, title: "Going Multi-Agent", desc: "Multi-agent systems let you break complex tasks across specialized instances that work in parallel. Learn to recognize the signals and why starting simple makes your multi-agent systems better when you need them." },
+                { slug: null, title: "Subagents", desc: "Subagents let your main agent spawn focused, isolated instances for specific tasks. Learn to define subagents with scoped prompts, tool restrictions, file access, and model selection." },
+                { slug: null, title: "Agent Teams", desc: "Sometimes tasks require parallel execution, shared context, or direct coordination between agents. Learn how Agent Teams coordinate through shared task lists, dependencies, and direct messaging." },
+                { slug: null, title: "Multi-Agent Patterns", desc: "Multi-agent systems follow repeatable patterns: researcher/implementer, parallel exploration with merge, generate/verify. Learn how to pick the right pattern for the task at hand." },
+                { slug: null, title: "Failure Modes", desc: "Subagents can go off the rails, contradict each other, or hallucinate context they weren't given. Learn to detect these failures and build guardrails that catch problems before they compound." },
+            ]
+        },
+        {
+            id: 4,
+            title: "Claude as Infrastructure",
+            lessons: [
+                { slug: null, title: "The Headless Execution Model", desc: "Turn Claude into a scriptable tool. Learn how headless execution works and how to build reproducible commands that completely change how you build with Claude." },
+                { slug: null, title: "Automating Code Review", desc: "Define review criteria in a REVIEW.md file, wire it into GitHub Actions, and build in the guardrails that can handle any PR you throw at it." },
+                { slug: null, title: "Pipeline Patterns", desc: "Learn automation patterns for issue triage, changelog generation, and automated test generation\u2014with design decisions around human checkpoints, output formats, and scoping." },
+                { slug: null, title: "Guardrails", desc: "Automated runs don't have a human watching. Learn to set limits, build kill switches for runaway loops, and design approval gates for high-risk actions." },
+            ]
+        },
+        {
+            id: 5,
+            title: "Shipping to Your Team",
+            lessons: [
+                { slug: null, title: "Configuration", desc: "Your team needs shared defaults without blocking individual customization. Learn how permissions, managed settings, shared templates, and scoped rules stack together." },
+                { slug: null, title: "Hooks", desc: "Configuration sets the rules. Hooks enforce them. Learn to use hooks for guardrails that prevent dangerous actions and observability that surfaces problems before they compound." },
+                { slug: null, title: "Distributing Workflows via Plugins", desc: "Bundle your skills, MCP servers, hooks, and subagents into a plugin that any teammate can install in minutes." },
+            ]
+        }
+    ];
+
+    let progress = JSON.parse(localStorage.getItem('cc-progress') || '{}');
+    let expanded = {};
+
+    function save() { localStorage.setItem('cc-progress', JSON.stringify(progress)); }
+
+    function key(m, l) { return `${m}.${l}`; }
+
+    function toggle(m, l) {
+        const k = key(m, l);
+        progress[k] = !progress[k];
+        save();
+        render();
+    }
+
+    function expand(m, l) {
+        const k = key(m, l);
+        expanded[k] = !expanded[k];
+        const el = document.getElementById('desc-' + k);
+        const ch = document.getElementById('chev-' + k);
+        if (el) el.classList.toggle('is-open', expanded[k]);
+        if (ch) ch.classList.toggle('rotated', expanded[k]);
+    }
+
+    function resetProgress() {
+        progress = {};
+        save();
+        render();
+    }
+
+    function countDone(mod) {
+        return mod.lessons.reduce((n, _, i) => n + (progress[key(mod.id, i)] ? 1 : 0), 0);
+    }
+
+    function render() {
+        // Global progress
+        let total = 0, done = 0;
+        COURSE.forEach(m => { total += m.lessons.length; done += countDone(m); });
+        document.getElementById('nav-progress').textContent = done ? `${done}/${total} complete` : '';
+
+        // Modules
+        const container = document.getElementById('modules');
+        container.innerHTML = COURSE.map(mod => {
+            const modDone = countDone(mod);
+            const pct = mod.lessons.length > 0 ? (modDone / mod.lessons.length) * 100 : 0;
+
+            return `
+                <div>
+                    <!-- Module header -->
+                    <div class="flex items-baseline gap-4 mb-5">
+                        <span class="module-num text-[13px] text-warm-400 font-medium w-5 flex-shrink-0">${mod.id}</span>
+                        <div class="flex-1">
+                            <h3 class="font-display text-[1.4rem] text-warm-900 tracking-[-0.01em] leading-tight">${mod.title}</h3>
+                        </div>
+                        <span class="text-[12px] text-warm-400 module-num flex-shrink-0">${modDone}/${mod.lessons.length}</span>
+                    </div>
+                    <!-- Progress bar -->
+                    <div class="ml-9 mb-4 h-[2px] bg-warm-150 rounded-full overflow-hidden">
+                        <div class="progress-bar h-full rounded-full ${modDone === mod.lessons.length && modDone > 0 ? 'bg-warm-800' : 'bg-accent'}" style="width:${pct}%"></div>
+                    </div>
+                    <!-- Lessons -->
+                    <div class="ml-9 border-l border-warm-200/70">
+                        ${mod.lessons.map((lesson, li) => {
+                            const k = key(mod.id, li);
+                            const isDone = progress[k];
+                            const isExp = expanded[k];
+                            const hasPage = lesson.slug !== null;
+
+                            if (hasPage) {
+                                // Available lesson — prominent clickable card
+                                return `
+                                <div class="relative">
+                                    <div class="absolute -left-[4.5px] top-[24px] w-[8px] h-[8px] rounded-full border-2 ${isDone ? 'bg-warm-800 border-warm-800' : 'bg-accent border-accent'} transition-colors"></div>
+                                    <a href="${lesson.slug}.html" class="available-lesson block ml-5 my-1.5 px-5 py-4 rounded-xl border border-warm-200 bg-white cursor-pointer no-underline">
+                                        <div class="flex items-center gap-3 mb-1.5">
+                                            <span class="text-[14.5px] font-medium text-warm-900 leading-snug">${lesson.title}</span>
+                                            <span class="inline-flex items-center gap-1 text-[11px] font-medium text-accent bg-[#D4713B12] px-2 py-0.5 rounded-full flex-shrink-0">Available</span>
+                                            <span class="flex-1"></span>
+                                            <svg class="w-4 h-4 text-accent flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                                        </div>
+                                        <p class="text-[13px] leading-[1.55] text-warm-500">${lesson.desc}</p>
+                                    </a>
+                                </div>
+                                `;
+                            }
+
+                            // Unavailable lesson — normal row
+                            return `
+                                <div class="relative">
+                                    <div class="absolute -left-[4.5px] top-[18px] w-[8px] h-[8px] rounded-full border-2 ${isDone ? 'bg-warm-800 border-warm-800' : 'bg-warm-50 border-warm-300'} transition-colors"></div>
+                                    <div class="lesson-link pl-6 pr-2 py-3 rounded-r-lg">
+                                        <div class="flex items-center gap-3">
+                                            <button onclick="event.stopPropagation(); toggle(${mod.id}, ${li})"
+                                                class="w-[18px] h-[18px] rounded-[5px] border flex-shrink-0 flex items-center justify-center transition-all
+                                                ${isDone ? 'bg-warm-800 border-warm-800' : 'border-warm-300 hover:border-warm-500'}"
+                                                aria-label="Toggle complete">
+                                                ${isDone ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                                            </button>
+
+                                            <button onclick="expand(${mod.id}, ${li})" class="flex-1 text-left flex items-center gap-2 min-w-0">
+                                                <span class="text-[14.5px] leading-snug ${isDone ? 'text-warm-400 line-through decoration-warm-300' : 'text-warm-700'} transition-colors truncate">${lesson.title}</span>
+                                            </button>
+
+                                            <button onclick="expand(${mod.id}, ${li})" class="p-1 flex-shrink-0" aria-label="Expand">
+                                                <svg id="chev-${k}" class="chevron-icon w-3.5 h-3.5 text-warm-400 ${isExp ? 'rotated' : ''}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                                            </button>
+                                        </div>
+
+                                        <div id="desc-${k}" class="lesson-desc ${isExp ? 'is-open' : ''}">
+                                            <div>
+                                                <p class="text-[13.5px] leading-[1.6] text-warm-500 pt-2 pl-[30px] pr-4 pb-1">${lesson.desc}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    render();
+    </script>
+</body>
+</html>

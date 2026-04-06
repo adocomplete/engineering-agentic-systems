@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1.4 Compaction &mdash; Engineering Agentic Systems</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;450;500;520;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'display': ['"Instrument Serif"', 'Georgia', 'serif'],
+                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        'mono': ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+                    },
+                    colors: {
+                        'warm': {
+                            50: '#FAFAF8',
+                            100: '#F3F2EE',
+                            150: '#ECEAE4',
+                            200: '#E0DED6',
+                            300: '#C9C5B9',
+                            400: '#A9A395',
+                            500: '#8A8374',
+                            600: '#6B655A',
+                            700: '#524E45',
+                            800: '#393630',
+                            900: '#1D1B18',
+                        },
+                        'accent': '#D4713B',
+                        'accent-muted': '#C2784A',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { -webkit-font-smoothing: antialiased; }
+        ::selection { background: #D4713B33; }
+
+        .prose p { margin-bottom: 1.25em; }
+        .prose p:last-child { margin-bottom: 0; }
+
+        .callout-border {
+            border-left: 2px solid #D4713B;
+        }
+
+        pre code {
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .toc-link {
+            transition: color 0.15s ease;
+        }
+        .toc-link:hover { color: #393630; }
+        .toc-link.active {
+            color: #1D1B18;
+            font-weight: 500;
+        }
+
+        .viz-scroll::-webkit-scrollbar { width: 4px; }
+        .viz-scroll::-webkit-scrollbar-track { background: transparent; }
+        .viz-scroll::-webkit-scrollbar-thumb { background: #C9C5B9; border-radius: 4px; }
+
+        @media (min-width: 1280px) {
+            .toc-sidebar {
+                position: sticky;
+                top: 80px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-warm-50 text-warm-900 font-sans">
+
+    <!-- Top bar -->
+    <nav class="fixed top-0 inset-x-0 z-50 bg-warm-50/85 backdrop-blur-lg">
+        <div class="max-w-[680px] xl:max-w-[1080px] mx-auto px-6 flex items-center justify-between h-14">
+            <a href="index.html" class="flex items-center gap-2 text-[13px] text-warm-500 hover:text-warm-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                All lessons
+            </a>
+            <span class="text-[13px] text-warm-400">Module 1 &middot; Lesson 4</span>
+        </div>
+        <div class="max-w-[680px] xl:max-w-[1080px] mx-auto px-6">
+            <div class="h-px bg-warm-200/70"></div>
+        </div>
+    </nav>
+
+    <div class="max-w-[680px] xl:max-w-[1080px] mx-auto px-6">
+        <div class="xl:grid xl:grid-cols-[680px_1fr] xl:gap-16">
+
+            <!-- Main content -->
+            <main class="pt-28 pb-24">
+                <!-- Lesson header -->
+                <header class="mb-14">
+                    <p class="text-[13px] text-warm-400 mb-4 font-medium tracking-[-0.01em]">Context Engineering</p>
+                    <h1 class="font-display text-[clamp(2.2rem,5vw,3.2rem)] leading-[1.08] text-warm-900 tracking-[-0.01em] mb-5">Compaction</h1>
+                    <p class="text-[17px] leading-[1.65] text-warm-600 max-w-[560px]">When a session gets long enough, Claude compacts the conversation. Understanding what compaction is and how it works is essential for building agentic workflows you can trust.</p>
+                </header>
+
+                <!-- Lesson navigation -->
+                <div class="flex items-center gap-3 mb-14 pb-8 border-b border-warm-200/70">
+                    <a href="#" class="text-[13px] text-warm-400 hover:text-warm-600 transition-colors">&larr; 1.3 Auto Memory</a>
+                    <span class="flex-1"></span>
+                    <a href="#" class="text-[13px] text-warm-400 hover:text-warm-600 transition-colors">1.5 Debugging Context Failures &rarr;</a>
+                </div>
+
+                <!-- Article body -->
+                <article class="prose">
+
+                    <!-- Section: What is compaction -->
+                    <section id="what-is-compaction" class="mb-14">
+                        <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">What is compaction?</h2>
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>Every Claude Code session has a finite context window. Modern models like Sonnet 4.6 and Opus 4.6 support up to 1 million tokens of context. As you work, sending messages, reading files, running commands, the conversation grows and available context is consumed. When it approaches the limit, Claude compresses earlier parts of the conversation into a summary. This is compaction.</p>
+                            <p>Compaction works in two steps. First, Claude clears older tool outputs (the raw results of file reads, command executions, and search results). If the conversation is still too large, it then summarizes the remaining history into a condensed form. A <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">[context compacted]</code> indicator appears in your terminal when this happens.</p>
+                            <p>Compaction is lossy. The summary captures the gist but drops specifics. A file path mentioned once in passing, a flag you set early in the session, a nuanced instruction you gave twenty messages ago. Any of these can disappear in a compaction pass. Imagine summarizing a two-hour conversation for a coworker who just walked in. You'd hit the key points but likely skip the small details that may be important. Compaction works the same way.</p>
+                        </div>
+                    </section>
+
+                    <!-- Interactive visualization -->
+                    <section id="visualization" class="mb-14">
+                        <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">Compaction in action</h2>
+                        <p class="text-[15.5px] leading-[1.72] text-warm-700 mb-8">Let's step through a visualization of a session to see how context fills, when compaction fires, and what comes out the other side.</p>
+
+                        <div class="rounded-2xl border border-warm-200 bg-white overflow-hidden">
+                            <!-- Step indicator + controls -->
+                            <div class="flex items-center justify-between px-5 py-3 border-b border-warm-150 bg-warm-50/50">
+                                <div class="flex items-center gap-3">
+                                    <span id="viz-step-label" class="text-[13px] font-medium text-warm-800"></span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <button onclick="vizPrev()" id="viz-prev-btn" class="w-7 h-7 rounded-md flex items-center justify-center border border-warm-200 text-warm-500 hover:text-warm-800 hover:border-warm-300 transition-colors disabled:opacity-30 disabled:pointer-events-none">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+                                    </button>
+                                    <button onclick="vizNext()" id="viz-next-btn" class="w-7 h-7 rounded-md flex items-center justify-center border border-warm-200 text-warm-500 hover:text-warm-800 hover:border-warm-300 transition-colors disabled:opacity-30 disabled:pointer-events-none">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Viz body -->
+                            <div class="p-5 md:p-6">
+                                <!-- Context window bar -->
+                                <div class="mb-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-[11px] uppercase tracking-[0.08em] text-warm-400 font-medium">Context window</span>
+                                        <span id="viz-pct" class="text-[12px] font-mono text-warm-500"></span>
+                                    </div>
+                                    <div class="relative h-8 bg-warm-100 rounded-lg overflow-hidden">
+                                        <!-- Threshold marker -->
+                                        <div class="absolute top-0 bottom-0 border-r border-dashed border-warm-400/50 z-10" style="left:95%">
+                                            <span class="absolute -top-[18px] -translate-x-1/2 text-[10px] text-warm-400 whitespace-nowrap">95%</span>
+                                        </div>
+                                        <!-- Segments rendered by JS -->
+                                        <div id="viz-bar" class="absolute inset-0 flex"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Legend -->
+                                <div id="viz-legend" class="flex flex-wrap gap-x-4 gap-y-1 mb-6 min-h-[20px]"></div>
+
+                                <!-- Session content blocks -->
+                                <div id="viz-blocks" class="viz-scroll space-y-1.5 max-h-[340px] overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: #C9C5B9 transparent;"></div>
+
+                                <!-- Hook code reveal -->
+                                <div id="viz-hook-area" class="hidden mt-4"></div>
+
+                                <!-- Step description -->
+                                <div id="viz-desc" class="mt-5 pt-4 border-t border-warm-100 text-[13.5px] leading-[1.6] text-warm-600"></div>
+                            </div>
+
+                            <!-- Step dots -->
+                            <div class="flex items-center justify-center gap-1.5 pb-4" id="viz-dots"></div>
+                        </div>
+                    </section>
+
+                    <!-- Section: When it triggers -->
+                    <section id="when-it-triggers" class="mb-14">
+                        <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">Auto-compaction</h2>
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>Auto-compaction triggers when the conversation reaches approximately 95% of context capacity by default. But "capacity" isn't the raw context window because Claude Code reserves a buffer (roughly ~20K tokens on a 200K context window) for its own operation. After accounting for system overhead (~20K tokens), MCP tool schemas, and CLAUDE.md files, the usable conversation space before triggering ranges between 100K-140K tokens.</p>
+                            <p>You can monitor this in real time. The <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/context</code> command shows a detailed token allocation breakdown for your current session. You can also configure your status line to display context usage percentage continuously.</p>
+                        </div>
+
+                        <!-- Real screenshot -->
+                        <figure class="my-8">
+                            <div class="rounded-xl overflow-hidden">
+                                <img src="compaction.png" alt="Claude Code /context command output showing token allocation breakdown: system prompt 6.9K, system tools 8.5K, skills 562, messages 83.8K, free space 279.2K, autocompact buffer 21K — totaling 99.6K of 400K tokens used (25%)" class="w-full block">
+                            </div>
+                            <figcaption class="mt-3 text-[12.5px] text-warm-500 leading-relaxed">The <code class="font-mono text-[11.5px] bg-warm-100 px-1 rounded">/context</code> command in a live Claude Code session. This session is at 25% capacity accounting for the system prompt, tools, and skills consume a fixed overhead (~16K tokens), messages take 83.8K, and the autocompact buffer reserves 21K tokens. Compaction would trigger when messages fill most of the remaining 279K of free space.</figcaption>
+                        </figure>
+                    </section>
+
+                    <!-- Section: Manual compaction -->
+                    <section id="manual-compaction" class="mb-14">
+                        <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">Manual compaction</h2>
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>You can trigger compaction manually at any time by typing <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/compact</code> in Claude Code. This is useful when you've finished a phase of work and want to start fresh without ending the session.</p>
+                            <p>Additionally, <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/compact</code> accepts a focus argument that tells the summarizer what to prioritize:</p>
+                        </div>
+
+                        <div class="my-8 rounded-xl bg-warm-900 overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-2.5 bg-warm-800/50">
+                                <span class="text-[12px] text-warm-500 font-mono">examples</span>
+                            </div>
+                            <pre class="px-5 py-4 overflow-x-auto"><code class="font-mono text-warm-300"><span class="text-warm-500"># Focus the summary on specific work</span>
+/compact focus on the API changes
+
+<span class="text-warm-500"># Preserve multiple categories of detail</span>
+/compact preserve all file paths I modified, current test
+failures, and the auth refactoring plan</code></pre>
+                        </div>
+
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>For instructions you want applied to <em>every</em> compaction&mdash;manual and automatic&mdash;add a dedicated section to your CLAUDE.md file:</p>
+                        </div>
+
+                        <div class="my-8 rounded-xl bg-warm-900 overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-2.5 bg-warm-800/50">
+                                <span class="text-[12px] text-warm-500 font-mono">CLAUDE.md</span>
+                            </div>
+                            <pre class="px-5 py-4 overflow-x-auto"><code class="font-mono text-warm-300"><span class="text-accent"># Compact instructions</span>
+When you are using compact, please focus on
+test output and code changes</code></pre>
+                        </div>
+
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>This section is loaded from disk after every compaction cycle, so it always persists regardless of how many times the session compacts.</p>
+                        </div>
+                    </section>
+
+                    <!-- Section: /compact vs /clear -->
+                    <section id="compact-vs-clear" class="mb-14">
+                        <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">/compact vs /clear</h2>
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>Claude Code has two ways to free up context within a running session, and they work very differently.</p>
+                            <p><code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/compact</code> summarizes the conversation. You keep a compressed version of what happened including which files were modified, what decisions were made, where you left off. The session continues with that summary as context.</p>
+                            <p><code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/clear</code> wipes the conversation entirely. No summary, no history. It's a blank slate within the same running process. The aliases <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/reset</code> and <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/new</code> do the same thing.</p>
+                        </div>
+
+                        <div class="my-8 overflow-x-auto">
+                            <table class="w-full text-[13.5px]">
+                                <thead>
+                                    <tr class="border-b border-warm-200">
+                                        <th class="text-left font-medium text-warm-900 py-2.5 pr-6"></th>
+                                        <th class="text-left font-medium text-warm-900 py-2.5 pr-6">/compact</th>
+                                        <th class="text-left font-medium text-warm-900 py-2.5">/clear</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-warm-600">
+                                    <tr class="border-b border-warm-100">
+                                        <td class="py-2.5 pr-6 font-medium text-warm-800">Conversation</td>
+                                        <td class="py-2.5 pr-6">Summarized</td>
+                                        <td class="py-2.5">Wiped entirely</td>
+                                    </tr>
+                                    <tr class="border-b border-warm-100">
+                                        <td class="py-2.5 pr-6 font-medium text-warm-800">CLAUDE.md</td>
+                                        <td class="py-2.5 pr-6">Reloaded from disk</td>
+                                        <td class="py-2.5">Reloaded from disk</td>
+                                    </tr>
+                                    <tr class="border-b border-warm-100">
+                                        <td class="py-2.5 pr-6 font-medium text-warm-800">Auto memory</td>
+                                        <td class="py-2.5 pr-6">Reloaded from disk</td>
+                                        <td class="py-2.5">Reloaded from disk</td>
+                                    </tr>
+                                    <tr class="border-b border-warm-100">
+                                        <td class="py-2.5 pr-6 font-medium text-warm-800">Chat-only instructions</td>
+                                        <td class="py-2.5 pr-6">May survive in summary</td>
+                                        <td class="py-2.5">Lost</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-6 font-medium text-warm-800">Use case</td>
+                                        <td class="py-2.5 pr-6">Continue related work</td>
+                                        <td class="py-2.5">Start something unrelated</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>The key difference: after <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/compact</code>, Claude knows what you've been working on. After <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/clear</code>, it doesn't. Both reload static context from disk, so CLAUDE.md and auto memory are always present regardless of which you use.</p>
+                            <p>Use <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/compact</code> when you're continuing related work and want Claude to retain the thread. Use <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/clear</code> when you're switching to something completely different and the prior context would just be noise.</p>
+                        </div>
+                    </section>
+
+                    <!-- Section: What survives -->
+                    <section id="what-survives" class="mb-14">
+                        <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">What survives compaction?</h2>
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>Not everything is equally vulnerable. Here's the hierarchy:</p>
+                        </div>
+
+                        <!-- Tiered list -->
+                        <div class="my-8 space-y-5">
+                            <div class="flex gap-4">
+                                <div class="flex-shrink-0 w-[3px] rounded-full bg-warm-800"></div>
+                                <div>
+                                    <p class="text-[14px] font-medium text-warm-900 mb-1">Always survives - reloaded from disk</p>
+                                    <p class="text-[14px] leading-[1.6] text-warm-600">System prompt, CLAUDE.md files, <code class="font-mono text-[12.5px] text-warm-700 bg-warm-100 px-1 py-0.5 rounded">.claude/rules/</code> files, and auto memory (MEMORY.md, first 200 lines or 25KB). These are loaded from disk and as they are never part of the conversation history and compaction cannot touch them.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-4">
+                                <div class="flex-shrink-0 w-[3px] rounded-full bg-warm-500"></div>
+                                <div>
+                                    <p class="text-[14px] font-medium text-warm-900 mb-1">Preserved in the summary (best-effort)</p>
+                                    <p class="text-[14px] leading-[1.6] text-warm-600">Current task and immediate context, recently modified file names, recent errors and their solutions, general project architecture, your most recent requests and key code snippets.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-4">
+                                <div class="flex-shrink-0 w-[3px] rounded-full bg-warm-300"></div>
+                                <div>
+                                    <p class="text-[14px] font-medium text-warm-900 mb-1">Consistently lost or degraded</p>
+                                    <p class="text-[14px] leading-[1.6] text-warm-600">Instructions from early in the session, intermediate decision rationale, code snippets discussed earlier, subtle style rules, specific file paths and line numbers (generalized to descriptions like "modified auth middleware"), stack traces (summarized or dropped), debugging hypotheses (lose supporting details), and test results (reduced to pass/fail).</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>If something must persist across a long session, don't rely on having said it once. Put it in a CLAUDE.md file, a rules file, or use auto memory where it becomes static context that is reloaded from disk on every turn.</p>
+                        </div>
+                    </section>
+
+                    <!-- Section: Hooks -->
+                    <section id="hooks" class="mb-14">
+                        <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">PreCompact and PostCompact hooks</h2>
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>Claude Code fires a <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">PreCompact</code> hook just before compaction runs. Your hook script receives context via stdin as JSON and can return an <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">additionalContext</code> field that gets injected into the compaction prompt, shaping what the summary preserves.</p>
+                        </div>
+
+                        <!-- Code block: hook input -->
+                        <div class="my-8 rounded-xl bg-warm-900 overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-2.5 bg-warm-800/50">
+                                <span class="text-[12px] text-warm-500 font-mono">PreCompact hook input (stdin)</span>
+                            </div>
+                            <pre class="px-5 py-4 overflow-x-auto"><code class="font-mono text-warm-300">{
+  <span class="text-accent">"session_id"</span>: <span class="text-warm-400">"abc123"</span>,
+  <span class="text-accent">"transcript_path"</span>: <span class="text-warm-400">"~/.claude/projects/.../transcript.jsonl"</span>,
+  <span class="text-accent">"cwd"</span>: <span class="text-warm-400">"/Users/you/project"</span>,
+  <span class="text-accent">"hook_event_name"</span>: <span class="text-warm-400">"PreCompact"</span>,
+  <span class="text-accent">"compaction_trigger"</span>: <span class="text-warm-400">"auto"</span>
+}</code></pre>
+                        </div>
+
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>The <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">compaction_trigger</code> field is either <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">"manual"</code> or <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">"auto"</code>, and you can use the matcher to run different hooks for each. Your hook returns JSON with preservation instructions:</p>
+                        </div>
+
+                        <!-- Code block: settings -->
+                        <div class="my-8 rounded-xl bg-warm-900 overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-2.5 bg-warm-800/50">
+                                <span class="text-[12px] text-warm-500 font-mono">.claude/settings.json</span>
+                            </div>
+                            <pre class="px-5 py-4 overflow-x-auto"><code class="font-mono text-warm-300">{
+  <span class="text-accent">"hooks"</span>: {
+    <span class="text-accent">"PreCompact"</span>: [
+      {
+        <span class="text-accent">"matcher"</span>: <span class="text-warm-400">"auto"</span>,
+        <span class="text-accent">"hooks"</span>: [
+          {
+            <span class="text-accent">"type"</span>: <span class="text-warm-400">"command"</span>,
+            <span class="text-accent">"command"</span>: <span class="text-warm-400">"echo '{\"hookSpecificOutput\":{\"additionalContext\":\"Preserve all modified file paths with line numbers, current test failures, and the active task plan.\"}}'"</span>
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+                        </div>
+
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>A <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">PostCompact</code> hook also fires after compaction completes. It uses the same matcher and input schema. PostCompact is useful for logging, backup, or verification. For example, writing the transcript to an external store before the raw history is dropped.</p>
+                        </div>
+                    </section>
+
+                    <!-- Section: Environment variables -->
+                    <section id="environment-variables" class="mb-14">
+                        <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">Configuration</h2>
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>Several environment variables give you control over compaction behavior:</p>
+                        </div>
+
+                        <div class="my-8 overflow-x-auto">
+                            <table class="w-full text-[13.5px]">
+                                <thead>
+                                    <tr class="border-b border-warm-200">
+                                        <th class="text-left font-medium text-warm-900 py-2.5 pr-6">Variable</th>
+                                        <th class="text-left font-medium text-warm-900 py-2.5">Effect</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-warm-600">
+                                    <tr class="border-b border-warm-100">
+                                        <td class="py-2.5 pr-6 font-mono text-[12.5px] text-warm-800 whitespace-nowrap">DISABLE_AUTO_COMPACT</td>
+                                        <td class="py-2.5">Disables automatic compaction. Manual <code class="font-mono text-[12px] bg-warm-100 px-1 rounded">/compact</code> still works.</td>
+                                    </tr>
+                                    <tr class="border-b border-warm-100">
+                                        <td class="py-2.5 pr-6 font-mono text-[12.5px] text-warm-800 whitespace-nowrap">DISABLE_COMPACT</td>
+                                        <td class="py-2.5">Disables all compaction whether automatic and manual.</td>
+                                    </tr>
+                                    <tr class="border-b border-warm-100">
+                                        <td class="py-2.5 pr-6 font-mono text-[12.5px] text-warm-800 whitespace-nowrap">CLAUDE_AUTOCOMPACT_PCT_OVERRIDE</td>
+                                        <td class="py-2.5">Set the percentage (1&ndash;100) at which auto-compaction triggers. <i>Default is ~95%</i>.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-6 font-mono text-[12.5px] text-warm-800 whitespace-nowrap">CLAUDE_CODE_AUTO_COMPACT_WINDOW</td>
+                                        <td class="py-2.5">Set the token capacity used for auto-compaction calculations, decoupled from the actual model context window.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>In practice, most teams leave auto-compaction enabled and focus their effort on the compact instructions in CLAUDE.md and PreCompact hooks. Disabling compaction entirely means hitting a hard context limit, which is almost always worse than a lossy summary.</p>
+                        </div>
+                    </section>
+
+                    <!-- Section: Designing for compaction -->
+                    <section id="designing-for-compaction" class="mb-14">
+                        <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">Designing for compaction</h2>
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>The best approach to compaction is defensive. Assume it will happen, and structure your workflow so that critical information lives outside the conversation.</p>
+                        </div>
+
+                        <div class="my-8 space-y-4">
+                            <div class="flex gap-3.5 items-start">
+                                <span class="text-[14px] text-warm-400 font-mono leading-[1.7] flex-shrink-0 w-5 text-right">1.</span>
+                                <div>
+                                    <p class="text-[14.5px] leading-[1.65] text-warm-700"><strong class="text-warm-900 font-medium">Promote recurring instructions to static context.</strong> If you find yourself repeating something across sessions, move it to CLAUDE.md or a rules file.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-3.5 items-start">
+                                <span class="text-[14px] text-warm-400 font-mono leading-[1.7] flex-shrink-0 w-5 text-right">2.</span>
+                                <div>
+                                    <p class="text-[14.5px] leading-[1.65] text-warm-700"><strong class="text-warm-900 font-medium">Add a compact instructions section to CLAUDE.md.</strong> This lets you permanently control what the summarizer prioritizes without relying on hooks.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-3.5 items-start">
+                                <span class="text-[14px] text-warm-400 font-mono leading-[1.7] flex-shrink-0 w-5 text-right">3.</span>
+                                <div>
+                                    <p class="text-[14.5px] leading-[1.65] text-warm-700"><strong class="text-warm-900 font-medium">Use memory for cross-session persistence.</strong> Auto memory saves facts that survive not just compaction but session boundaries entirely.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-3.5 items-start">
+                                <span class="text-[14px] text-warm-400 font-mono leading-[1.7] flex-shrink-0 w-5 text-right">4.</span>
+                                <div>
+                                    <p class="text-[14.5px] leading-[1.65] text-warm-700"><strong class="text-warm-900 font-medium">Compact manually at natural breakpoints.</strong> Don't wait for auto-compact to hit mid-task. Run <code class="font-mono text-[13px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/compact</code> with a focus argument after finishing a task to get a clean summary while the context is coherent.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-3.5 items-start">
+                                <span class="text-[14px] text-warm-400 font-mono leading-[1.7] flex-shrink-0 w-5 text-right">5.</span>
+                                <div>
+                                    <p class="text-[14.5px] leading-[1.65] text-warm-700"><strong class="text-warm-900 font-medium">Monitor with /context.</strong> Keep an eye on token usage so compaction doesn't surprise you. Understanding where your tokens go (system overhead, MCP schemas, CLAUDE.md, conversation) helps you optimize.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-3.5 items-start">
+                                <span class="text-[14px] text-warm-400 font-mono leading-[1.7] flex-shrink-0 w-5 text-right">6.</span>
+                                <div>
+                                    <p class="text-[14.5px] leading-[1.65] text-warm-700"><strong class="text-warm-900 font-medium">Restate context after compaction.</strong> If you notice Claude lost something, restate it to ensure that it is included in the current session.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Section: Common mistakes -->
+                    <section id="common-mistakes" class="mb-14">
+                        <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">Common mistakes</h2>
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>Most compaction problems come from treating the conversation as durable storage.</p>
+                        </div>
+
+                        <div class="my-8 space-y-6">
+                            <div class="grid grid-rows-[auto_1fr] gap-x-5 gap-y-1.5">
+                                <p class="text-[14.5px] font-medium text-warm-900">Giving critical instructions only once, early in a long session.</p>
+                                <p class="text-[13.5px] leading-[1.6] text-warm-500">These are the first to go. If it's important enough to matter 50 messages later, it belongs in CLAUDE.md, a rules file, or auto memory.</p>
+                            </div>
+                            <div class="grid grid-rows-[auto_1fr] gap-x-5 gap-y-1.5">
+            
+                                <p class="text-[14.5px] font-medium text-warm-900">Assuming Claude remembers file contents it read 30 messages ago.</p>
+                                <p class="text-[13.5px] leading-[1.6] text-warm-500">Tool output is the first thing cleared during compaction. Claude may remember that it read a file, but not the contents. It can always re-read the file.</p>
+                            </div>
+                            <div class="grid grid-rows-[auto_1fr] gap-x-5 gap-y-1.5">
+                
+                                <p class="text-[14.5px] font-medium text-warm-900">Overloading PreCompact with too many preservation rules.</p>
+                                <p class="text-[13.5px] leading-[1.6] text-warm-500">If you tell the summarizer to keep everything, it can't keep anything well. Be selective about what the hook preserves.</p>
+                            </div>
+                            <div class="grid grid-rows-[auto_1fr] gap-x-5 gap-y-1.5">
+
+                                <p class="text-[14.5px] font-medium text-warm-900">Disabling compaction entirely instead of designing around it.</p>
+                                <p class="text-[13.5px] leading-[1.6] text-warm-500">Setting <code class="font-mono text-[12px] bg-warm-100 px-1 rounded">DISABLE_COMPACT</code> means hitting a hard context limit, which is almost always worse than a lossy summary. Work with compaction, not against it.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Summary -->
+                    <section id="summary" class="mb-4">
+                        <h2 class="font-display text-[1.55rem] text-warm-900 tracking-[-0.01em] mb-5">Summary</h2>
+                        <div class="text-[15.5px] leading-[1.72] text-warm-700 space-y-5">
+                            <p>Compaction is a consequence of finite context windows. It is also a design constraint you can work with. The tools are layered: compact instructions in CLAUDE.md for permanent summarization guidance, <code class="font-mono text-[13.5px] text-warm-800 bg-warm-100 px-1.5 py-0.5 rounded">/compact</code> with focus arguments for intentional breakpoints, PreCompact and PostCompact hooks for programmatic control, and environment variables for threshold tuning. Design your workflow so critical information lives in durable locations like CLAUDE.md and treat the conversation as ephemeral.</p>
+                            <p>In the next lesson, we'll look at what happens when context engineering goes wrong and how to trace the root cause.</p>
+                        </div>
+                    </section>
+
+                </article>
+
+                <!-- Bottom nav -->
+                <div class="mt-16 pt-8 border-t border-warm-200/70 flex items-center justify-between">
+                    <a href="#" class="group flex items-center gap-2 text-[14px] text-warm-500 hover:text-warm-800 transition-colors">
+                        <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                        Auto Memory
+                    </a>
+                    <a href="#" class="group flex items-center gap-2 text-[14px] text-warm-500 hover:text-warm-800 transition-colors">
+                        Debugging Context Failures
+                        <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                    </a>
+                </div>
+            </main>
+
+            <!-- Table of contents sidebar (desktop) -->
+            <aside class="hidden xl:block pt-28 pb-24">
+                <div class="toc-sidebar">
+                    <p class="text-[11px] uppercase tracking-[0.1em] text-warm-400 font-medium mb-4">On this page</p>
+                    <nav class="space-y-2.5">
+                        <a href="#what-is-compaction" class="toc-link block text-[13px] text-warm-500 leading-snug">What is compaction?</a>
+                        <a href="#visualization" class="toc-link block text-[13px] text-warm-500 leading-snug">Compaction in action</a>
+                        <a href="#when-it-triggers" class="toc-link block text-[13px] text-warm-500 leading-snug">Auto-compaction</a>
+                        <a href="#manual-compaction" class="toc-link block text-[13px] text-warm-500 leading-snug">Manual compaction</a>
+                        <a href="#compact-vs-clear" class="toc-link block text-[13px] text-warm-500 leading-snug">/compact vs /clear</a>
+                        <a href="#what-survives" class="toc-link block text-[13px] text-warm-500 leading-snug">What survives compaction?</a>
+                        <a href="#hooks" class="toc-link block text-[13px] text-warm-500 leading-snug">PreCompact & PostCompact hooks</a>
+                        <a href="#environment-variables" class="toc-link block text-[13px] text-warm-500 leading-snug">Configuration</a>
+                        <a href="#designing-for-compaction" class="toc-link block text-[13px] text-warm-500 leading-snug">Designing for compaction</a>
+                        <a href="#common-mistakes" class="toc-link block text-[13px] text-warm-500 leading-snug">Common mistakes</a>
+                        <a href="#summary" class="toc-link block text-[13px] text-warm-500 leading-snug">Summary</a>
+                    </nav>
+
+                    <!-- Mark complete button -->
+                    <div class="mt-10 pt-6 border-t border-warm-200/70">
+                        <button id="complete-btn" onclick="toggleComplete()" class="w-full text-[13px] font-medium py-2.5 px-4 rounded-lg border transition-all"></button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Mobile complete button -->
+    <div class="xl:hidden fixed bottom-0 inset-x-0 bg-warm-50/90 backdrop-blur-lg border-t border-warm-200/70 px-6 py-3 z-40">
+        <button id="complete-btn-mobile" onclick="toggleComplete()" class="w-full text-[13px] font-medium py-2.5 px-4 rounded-lg border transition-all"></button>
+    </div>
+
+    <!-- Hook code templates (hidden, read by JS) -->
+    <template id="tpl-precompact">
+<div class="flex items-center px-4 py-2 bg-warm-800/50">
+    <span class="text-[12px] text-warm-500 font-mono">.claude/settings.json</span>
+</div>
+<pre class="px-5 py-4 overflow-x-auto"><code class="font-mono text-[13px] leading-[1.65] text-[#C9C5B9]">{
+  <span class="text-[#D4713B]">"hooks"</span>: {
+    <span class="text-[#D4713B]">"PreCompact"</span>: [
+      {
+        <span class="text-[#D4713B]">"matcher"</span>: <span class="text-[#A9A395]">"auto"</span>,
+        <span class="text-[#D4713B]">"hooks"</span>: [
+          {
+            <span class="text-[#D4713B]">"type"</span>: <span class="text-[#A9A395]">"command"</span>,
+            <span class="text-[#D4713B]">"command"</span>: <span class="text-[#A9A395]">"echo 'Preserve all modified file paths, test status, and the JWT refactoring plan.'"</span>
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+<div class="px-5 pb-4 pt-1">
+    <p class="text-[12px] text-warm-500 leading-relaxed">The command's stdout is injected as <code class="text-[11px] text-[#D4713B]">additionalContext</code> into the compaction prompt, telling Claude what to prioritize in the summary.</p>
+</div>
+    </template>
+
+    <template id="tpl-postcompact">
+<div class="flex items-center px-4 py-2 bg-warm-800/50">
+    <span class="text-[12px] text-warm-500 font-mono">.claude/settings.json</span>
+</div>
+<pre class="px-5 py-4 overflow-x-auto"><code class="font-mono text-[13px] leading-[1.65] text-[#C9C5B9]">{
+  <span class="text-[#D4713B]">"hooks"</span>: {
+    <span class="text-[#D4713B]">"PostCompact"</span>: [
+      {
+        <span class="text-[#D4713B]">"matcher"</span>: <span class="text-[#A9A395]">"auto"</span>,
+        <span class="text-[#D4713B]">"hooks"</span>: [
+          {
+            <span class="text-[#D4713B]">"type"</span>: <span class="text-[#A9A395]">"command"</span>,
+            <span class="text-[#D4713B]">"command"</span>: <span class="text-[#A9A395]">"./scripts/on-compact.sh"</span>
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+<div class="px-5 pb-2 pt-1">
+    <p class="text-[12px] text-warm-500 leading-relaxed mb-2">The script receives session JSON via stdin:</p>
+</div>
+<pre class="px-5 pb-4 overflow-x-auto"><code class="font-mono text-[13px] leading-[1.65] text-[#C9C5B9]"><span class="text-warm-500">#!/bin/bash</span>
+INPUT=$(cat)
+TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path')
+SESSION=$(echo "$INPUT" | jq -r '.session_id')
+
+<span class="text-warm-500"># Archive transcript</span>
+cp "$TRANSCRIPT" "/var/log/claude/$SESSION.jsonl"
+
+<span class="text-warm-500"># Log the event</span>
+curl -s -X POST https://logs.internal/ingest \
+  -d "{\"event\":\"compaction\",\"session\":\"$SESSION\"}"</code></pre>
+    </template>
+
+    <script>
+    // ── Compaction Visualization ──
+    var COLORS = {
+        system:  { bg: '#393630', text: '#F3F2EE', label: 'System prompt' },
+        claude:  { bg: '#524E45', text: '#E0DED6', label: 'CLAUDE.md' },
+        memory:  { bg: '#6B655A', text: '#E0DED6', label: 'MEMORY.md' },
+        user:    { bg: '#D4713B', text: '#fff',    label: 'Your message' },
+        assist:  { bg: '#C2784A', text: '#fff',    label: 'Claude response' },
+        tool:    { bg: '#A9A395', text: '#fff',    label: 'Tool result' },
+        hook:    { bg: '#8A8374', text: '#fff',    label: 'Hook' },
+        summary: { bg: '#D4713B', text: '#fff',    label: 'Compaction summary' },
+        cleared: { bg: '#E0DED6', text: '#A9A395', label: 'Cleared' },
+    };
+
+    function block(type, text, extra) {
+        return { type: type, text: text, extra: extra || null };
+    }
+
+    var fullBar = [
+        { color: COLORS.system.bg, w: 5 },
+        { color: COLORS.claude.bg, w: 4 },
+        { color: COLORS.memory.bg, w: 3 },
+        { color: COLORS.user.bg, w: 2 },
+        { color: COLORS.tool.bg, w: 8 },
+        { color: COLORS.assist.bg, w: 4 },
+        { color: COLORS.user.bg, w: 2 },
+        { color: COLORS.tool.bg, w: 7 },
+        { color: COLORS.assist.bg, w: 6 },
+        { color: COLORS.user.bg, w: 2 },
+        { color: COLORS.tool.bg, w: 10 },
+        { color: COLORS.assist.bg, w: 5 },
+        { color: COLORS.user.bg, w: 2 },
+        { color: COLORS.tool.bg, w: 9 },
+        { color: COLORS.assist.bg, w: 6 },
+        { color: COLORS.user.bg, w: 2 },
+        { color: COLORS.tool.bg, w: 8 },
+        { color: COLORS.assist.bg, w: 6 },
+        { color: '#b5453420', w: 5, border: true },
+    ];
+
+    var afterBar = [
+        { color: COLORS.system.bg, w: 5 },
+        { color: COLORS.claude.bg, w: 4 },
+        { color: COLORS.memory.bg, w: 3 },
+        { color: COLORS.summary.bg, w: 6 },
+        { color: COLORS.user.bg, w: 2 },
+        { color: COLORS.tool.bg, w: 4 },
+        { color: COLORS.assist.bg, w: 4 },
+    ];
+
+    var STEPS = [
+        {
+            title: 'Step 1 — Session starts',
+            pct: 12,
+            bar: [
+                { color: COLORS.system.bg, w: 5 },
+                { color: COLORS.claude.bg, w: 4 },
+                { color: COLORS.memory.bg, w: 3 },
+            ],
+            legend: ['system', 'claude', 'memory'],
+            blocks: [
+                block('system', 'System prompt loaded', '~20K tokens'),
+                block('claude', 'CLAUDE.md loaded from disk', '~2K tokens'),
+                block('memory', 'MEMORY.md loaded (first 200 lines)', '~1K tokens'),
+            ],
+            desc: 'Static context is loaded before you type anything. System prompt, CLAUDE.md, rules files, and auto memory are injected every turn and are never part of the compactable conversation history.',
+        },
+        {
+            title: 'Step 2 — You start working',
+            pct: 38,
+            bar: [
+                { color: COLORS.system.bg, w: 5 },
+                { color: COLORS.claude.bg, w: 4 },
+                { color: COLORS.memory.bg, w: 3 },
+                { color: COLORS.user.bg, w: 3 },
+                { color: COLORS.tool.bg, w: 8 },
+                { color: COLORS.assist.bg, w: 5 },
+                { color: COLORS.user.bg, w: 3 },
+                { color: COLORS.tool.bg, w: 7 },
+            ],
+            legend: ['system', 'claude', 'memory', 'user', 'tool', 'assist'],
+            blocks: [
+                block('system', 'System prompt', '~20K'),
+                block('claude', 'CLAUDE.md', '~2K'),
+                block('memory', 'MEMORY.md', '~1K'),
+                block('user', '"Refactor the auth middleware to use JWT"'),
+                block('tool', 'Read src/middleware/auth.ts', '4,200 tokens'),
+                block('tool', 'Read src/config/jwt.ts', '1,800 tokens'),
+                block('assist', 'Claude plans the refactor, edits 3 files'),
+                block('user', '"Now update the tests to match"'),
+                block('tool', 'Read tests/auth.test.ts', '6,100 tokens'),
+                block('tool', 'Grep for auth references', '3,400 tokens'),
+            ],
+            desc: 'The conversation grows as you work. Tool results — file reads, grep output, command results — consume the most tokens. Each file read can be thousands of tokens.',
+        },
+        {
+            title: 'Step 3 — Context fills up',
+            pct: 96,
+            bar: fullBar,
+            legend: ['system', 'claude', 'memory', 'user', 'tool', 'assist'],
+            blocks: [
+                block('system', 'System prompt', '~20K'),
+                block('claude', 'CLAUDE.md', '~2K'),
+                block('memory', 'MEMORY.md', '~1K'),
+                block('user', '"Refactor the auth middleware to use JWT"'),
+                block('tool', 'Read src/middleware/auth.ts', '4,200 tokens'),
+                block('tool', 'Read src/config/jwt.ts', '1,800 tokens'),
+                block('assist', 'Claude plans the refactor, edits 3 files'),
+                block('user', '"Now update the tests to match"'),
+                block('tool', 'Read tests/auth.test.ts', '6,100 tokens'),
+                block('tool', 'Grep for auth references', '3,400 tokens'),
+                block('assist', 'Claude updates 4 test files'),
+                block('user', '"Run the test suite"'),
+                block('tool', 'bash: npm test', '12,600 tokens'),
+                block('assist', 'Claude analyzes 3 failing tests, proposes fixes'),
+                block('user', '"Fix the failures and add edge cases"'),
+                block('tool', 'Read + Edit across 6 files', '18,400 tokens'),
+                block('assist', 'Claude fixes tests, adds edge cases'),
+                block('user', '"Also update the API docs"'),
+                block('tool', 'Read docs/api/auth.md', '8,200 tokens'),
+                block('assist', 'Claude rewrites API documentation'),
+            ],
+            desc: '<strong class="text-warm-800">95% threshold reached.</strong> The conversation has accumulated ~140K tokens of tool results, messages, and responses. Auto-compaction triggers now.',
+        },
+        {
+            title: 'Step 4 — PreCompact hook fires',
+            pct: 96,
+            bar: fullBar,
+            legend: ['hook'],
+            blocks: [
+                block('hook', 'PreCompact hook fires', 'matcher: "auto"'),
+                block('hook', 'Receives JSON via stdin:'),
+                block('hook', '\u00A0\u00A0session_id, transcript_path, compaction_trigger: "auto"'),
+                block('hook', 'Returns stdout to compaction prompt:'),
+                block('hook', '\u00A0\u00A0"Preserve all modified file paths, current test status,'),
+                block('hook', '\u00A0\u00A0 and the JWT refactoring plan."'),
+            ],
+            hookTpl: 'tpl-precompact',
+            hookLabel: 'View PreCompact hook config',
+            desc: 'Before compaction runs, your optional PreCompact hook fires. It receives session metadata via stdin and its stdout is injected into the compaction prompt as preservation instructions. The hook is non-blocking — it cannot prevent compaction, only influence what the summary keeps.',
+        },
+        {
+            title: 'Step 5 — Tool outputs cleared',
+            pct: 52,
+            bar: [
+                { color: COLORS.system.bg, w: 5 },
+                { color: COLORS.claude.bg, w: 4 },
+                { color: COLORS.memory.bg, w: 3 },
+                { color: COLORS.user.bg, w: 2 },
+                { color: COLORS.cleared.bg, w: 4 },
+                { color: COLORS.assist.bg, w: 4 },
+                { color: COLORS.user.bg, w: 2 },
+                { color: COLORS.cleared.bg, w: 3 },
+                { color: COLORS.assist.bg, w: 6 },
+                { color: COLORS.user.bg, w: 2 },
+                { color: COLORS.cleared.bg, w: 4 },
+                { color: COLORS.assist.bg, w: 5 },
+                { color: COLORS.user.bg, w: 2 },
+                { color: COLORS.cleared.bg, w: 3 },
+                { color: COLORS.assist.bg, w: 6 },
+                { color: COLORS.user.bg, w: 2 },
+                { color: COLORS.tool.bg, w: 8 },
+                { color: COLORS.assist.bg, w: 6 },
+            ],
+            legend: ['system', 'claude', 'memory', 'user', 'cleared', 'assist', 'tool'],
+            blocks: [
+                block('system', 'System prompt', '~20K'),
+                block('claude', 'CLAUDE.md', '~2K'),
+                block('memory', 'MEMORY.md', '~1K'),
+                block('user', '"Refactor the auth middleware to use JWT"'),
+                block('cleared', 'Read src/middleware/auth.ts — cleared'),
+                block('cleared', 'Read src/config/jwt.ts — cleared'),
+                block('assist', 'Claude plans the refactor, edits 3 files'),
+                block('user', '"Now update the tests to match"'),
+                block('cleared', 'Read tests/auth.test.ts — cleared'),
+                block('cleared', 'Grep for auth references — cleared'),
+                block('assist', 'Claude updates 4 test files'),
+                block('user', '"Run the test suite"'),
+                block('cleared', 'bash: npm test — cleared'),
+                block('assist', 'Claude analyzes 3 failing tests, proposes fixes'),
+                block('user', '"Fix the failures and add edge cases"'),
+                block('cleared', 'Read + Edit across 6 files — cleared'),
+                block('assist', 'Claude fixes tests, adds edge cases'),
+                block('user', '"Also update the API docs"'),
+                block('tool', 'Read docs/api/auth.md', '8,200 tokens — kept (recent)'),
+                block('assist', 'Claude rewrites API documentation'),
+            ],
+            desc: '<strong class="text-warm-800">Step 1 of compaction: clear older tool outputs.</strong> The raw contents of file reads, grep results, and command output from earlier in the session are dropped. Only recent tool results are kept. This alone frees significant space — tool outputs are typically the largest token consumers.',
+        },
+        {
+            title: 'Step 6 — Conversation summarized',
+            pct: 22,
+            bar: afterBar,
+            legend: ['system', 'claude', 'memory', 'summary', 'user', 'tool', 'assist'],
+            blocks: [
+                block('system', 'System prompt', 'reloaded from disk'),
+                block('claude', 'CLAUDE.md', 'reloaded from disk'),
+                block('memory', 'MEMORY.md', 'reloaded from disk'),
+                block('summary', 'Compaction summary'),
+                block('summary', '\u00A0\u00A0Refactored auth middleware from session-based to JWT.'),
+                block('summary', '\u00A0\u00A0Modified: src/middleware/auth.ts, src/config/jwt.ts,'),
+                block('summary', '\u00A0\u00A0tests/auth.test.ts + 3 test files, docs/api/auth.md.'),
+                block('summary', '\u00A0\u00A0All tests passing. Edge cases added for token expiry.'),
+                block('user', '"Also update the API docs"', 'recent — kept'),
+                block('tool', 'Read docs/api/auth.md', '8,200 tokens'),
+                block('assist', 'Claude rewrites API documentation'),
+            ],
+            desc: '<strong class="text-warm-800">Step 2 of compaction: summarize.</strong> The remaining conversation is compressed into a summary. Static context is reloaded fresh from disk. The summary preserves file paths and test status (thanks to our PreCompact hook) but loses specific file contents, intermediate reasoning, and exact error messages.',
+        },
+        {
+            title: 'Step 7 — PostCompact hook fires',
+            pct: 22,
+            bar: afterBar,
+            legend: ['hook', 'summary'],
+            blocks: [
+                block('hook', 'PostCompact hook fires', 'matcher: "auto"'),
+                block('hook', 'Receives same JSON input as PreCompact:'),
+                block('hook', '\u00A0\u00A0session_id, transcript_path, compaction_trigger: "auto"'),
+                block('hook', 'Example uses:'),
+                block('hook', '\u00A0\u00A0Log compaction event to observability system'),
+                block('hook', '\u00A0\u00A0Back up pre-compaction transcript to external store'),
+                block('hook', '\u00A0\u00A0Verify summary contains required information'),
+                block('hook', '\u00A0\u00A0Notify team channel when long sessions compact'),
+            ],
+            hookTpl: 'tpl-postcompact',
+            hookLabel: 'View PostCompact hook config',
+            desc: 'After compaction completes, the optional PostCompact hook fires. It receives the same session metadata as PreCompact. Use it for logging, backup, or verification. Like PreCompact, it is non-blocking and cannot undo the compaction. The session is now ready for more work with a clean context.',
+        },
+    ];
+
+    var vizStep = 0;
+
+    function toggleHookCode(btn) {
+        var codeDiv = btn.nextElementSibling;
+        var label = btn.querySelector('[data-label]');
+        if (codeDiv.classList.contains('hidden')) {
+            codeDiv.classList.remove('hidden');
+            label.textContent = 'Hide';
+        } else {
+            codeDiv.classList.add('hidden');
+            label.textContent = 'Show';
+        }
+    }
+
+    function vizRender() {
+        var step = STEPS[vizStep];
+
+        document.getElementById('viz-step-label').textContent = step.title;
+
+        var pctEl = document.getElementById('viz-pct');
+        pctEl.textContent = step.pct + '% used';
+        pctEl.className = step.pct > 90 ? 'text-[12px] font-mono text-red-600 font-medium' : 'text-[12px] font-mono text-warm-500';
+
+        var barEl = document.getElementById('viz-bar');
+        var totalW = step.bar.reduce(function(s, b) { return s + b.w; }, 0);
+        barEl.innerHTML = step.bar.map(function(b) {
+            var p = (b.w / totalW) * (step.pct / 100) * 100;
+            var bs = b.border ? 'border:1.5px dashed #D4713B;background:transparent;' : '';
+            return '<div style="width:' + p + '%;background:' + b.color + ';' + bs + '" class="h-full transition-all duration-500 first:rounded-l-lg last:rounded-r-lg"></div>';
+        }).join('');
+
+        var legendEl = document.getElementById('viz-legend');
+        var seen = {};
+        legendEl.innerHTML = step.legend.map(function(key) {
+            if (seen[key]) return '';
+            seen[key] = true;
+            var c = COLORS[key];
+            var swatch = key === 'cleared'
+                ? '<div class="w-2.5 h-2.5 rounded-sm" style="background:' + c.bg + ';border:1px dashed ' + c.text + '"></div>'
+                : '<div class="w-2.5 h-2.5 rounded-sm" style="background:' + c.bg + '"></div>';
+            return '<div class="flex items-center gap-1.5">' + swatch + '<span class="text-[11px] text-warm-500">' + c.label + '</span></div>';
+        }).join('');
+
+        var blocksEl = document.getElementById('viz-blocks');
+        blocksEl.innerHTML = step.blocks.map(function(b) {
+            var c = COLORS[b.type];
+            var isCleared = b.type === 'cleared';
+            var opacity = isCleared ? 'opacity-50' : '';
+            var strike = isCleared ? 'line-through decoration-warm-400' : '';
+            var extraHtml = b.extra ? '<span class="text-[12px] text-warm-400 ml-2">' + b.extra + '</span>' : '';
+            return '<div class="flex items-start gap-3 ' + opacity + '">'
+                + '<div class="w-[6px] h-[6px] rounded-full flex-shrink-0 mt-[7px]" style="background:' + c.bg + '"></div>'
+                + '<div class="min-w-0"><span class="text-[13px] ' + strike + ' text-warm-800">' + b.text + '</span>' + extraHtml + '</div>'
+                + '</div>';
+        }).join('');
+        blocksEl.scrollTop = 0;
+
+        // Hook code area
+        var hookArea = document.getElementById('viz-hook-area');
+        if (step.hookTpl) {
+            var tpl = document.getElementById(step.hookTpl);
+            hookArea.classList.remove('hidden');
+            hookArea.innerHTML = '<button onclick="toggleHookCode(this)" class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-warm-800 text-warm-100 text-[13px] font-medium hover:bg-warm-900 transition-colors w-full justify-center">'
+                + '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>'
+                + '<span data-label>Show</span>\u00A0' + step.hookLabel.replace('View ', '')
+                + '</button>'
+                + '<div class="hidden mt-3 rounded-xl bg-warm-900 overflow-hidden">' + tpl.innerHTML + '</div>';
+        } else {
+            hookArea.classList.add('hidden');
+            hookArea.innerHTML = '';
+        }
+
+        document.getElementById('viz-desc').innerHTML = step.desc;
+
+        document.getElementById('viz-prev-btn').disabled = vizStep === 0;
+        document.getElementById('viz-next-btn').disabled = vizStep === STEPS.length - 1;
+
+        var dotsEl = document.getElementById('viz-dots');
+        dotsEl.innerHTML = STEPS.map(function(_, i) {
+            return '<button onclick="vizGo(' + i + ')" class="w-1.5 h-1.5 rounded-full transition-colors ' + (i === vizStep ? 'bg-warm-800' : 'bg-warm-300') + '"></button>';
+        }).join('');
+    }
+
+    function vizNext() { if (vizStep < STEPS.length - 1) { vizStep++; vizRender(); } }
+    function vizPrev() { if (vizStep > 0) { vizStep--; vizRender(); } }
+    function vizGo(n) { vizStep = n; vizRender(); }
+
+    vizRender();
+    </script>
+
+    <script>
+    // Completion state (shared with index.html via same localStorage key)
+    const LESSON_KEY = '1.3'; // key for module 1, lesson index 3 (0-indexed)
+    let progress = JSON.parse(localStorage.getItem('cc-progress') || '{}');
+
+    function isComplete() { return !!progress[LESSON_KEY]; }
+
+    function toggleComplete() {
+        progress[LESSON_KEY] = !progress[LESSON_KEY];
+        localStorage.setItem('cc-progress', JSON.stringify(progress));
+        renderButton();
+    }
+
+    function renderButton() {
+        const done = isComplete();
+        ['complete-btn', 'complete-btn-mobile'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            if (done) {
+                btn.className = 'w-full text-[13px] font-medium py-2.5 px-4 rounded-lg border border-warm-800 bg-warm-800 text-warm-100 transition-all hover:bg-warm-900';
+                btn.innerHTML = '<span class="flex items-center justify-center gap-2"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Completed</span>';
+            } else {
+                btn.className = 'w-full text-[13px] font-medium py-2.5 px-4 rounded-lg border border-warm-300 bg-warm-50 text-warm-700 transition-all hover:border-warm-400 hover:bg-warm-100';
+                btn.textContent = 'Mark as complete';
+            }
+        });
+    }
+
+    renderButton();
+
+    // Active TOC highlighting
+    const tocLinks = document.querySelectorAll('.toc-link');
+    const sections = document.querySelectorAll('section[id]');
+
+    function updateToc() {
+        let current = '';
+        sections.forEach(s => {
+            if (window.scrollY >= s.offsetTop - 120) current = s.id;
+        });
+        tocLinks.forEach(link => {
+            link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+        });
+    }
+
+    window.addEventListener('scroll', updateToc, { passive: true });
+    updateToc();
+    </script>
+</body>
+</html>
